@@ -144,8 +144,12 @@ for range in ranges:
         mem_access_viol = dumper.splitter(
             agent, range["base"], range["size"], MAX_SIZE, mem_access_viol, DIRECTORY)
         continue
-    mem_access_viol = dumper.dump_to_file(
-        agent, range["base"], range["size"], mem_access_viol, DIRECTORY)
+    try:
+        mem_access_viol = dumper.dump_to_file(
+            agent, range["base"], range["size"], mem_access_viol, DIRECTORY)
+    except Exception as e:
+        logging.warning(f"Skipping range at {range['base']} due to: {e}")
+        continue
     i += 1
     utils.printProgress(i, l, prefix='Progress:', suffix='Complete', bar=50)
 

@@ -1,21 +1,42 @@
 import os
 import logging
+import threading
+
+class TimeoutException(Exception): pass
+
+def call_with_timeout(func, timeout=5, *args, **kwargs):
+    result = [TimeoutException("Timeout")]
+    def wrapper():
+        try:
+            result[0] = func(*args, **kwargs)
+        except Exception as e:
+            result[0] = e
+
+    thread = threading.Thread(target=wrapper)
+    thread.start()
+    thread.join(timeout)
+    if isinstance(result[0], Exception):
+        raise result[0]
+    return result[0]
 
 # Reading bytes from session and saving it to a file
 
 
 def dump_to_file(agent, base, size, error, directory):
-        try:
-                filename = str(base) + '_dump.data'
-                dump = agent.read_memory(base, size)
-                f = open(os.path.join(directory, filename), 'wb')
-                f.write(dump)
-                f.close()
-                return error
-        except Exception as e:
-                logging.debug(str(e))
-                print("Oops, memory access violation!")
-                return error
+    try:
+        filename = str(base) + '_dump.data'
+        dump = call_with_timeout(agent.read_memory, 1.5, base, size)
+        f = open(os.path.join(directory, filename), 'wb')
+        f.write(dump)
+        f.close()
+        return error
+    except TimeoutException:
+        logging.warning(f"Timeout reading memory at {base}, skipping.")
+        return error
+    except Exception as e:
+        logging.debug(str(e))
+        print("Oops, memory access violation!")
+        return error
 
 # Read bytes that are bigger than the max_size value, split them into chunks and save them to a file
 
